@@ -1,10 +1,10 @@
 import asyncio
 import logging
+
 from app.core.clients import EventsProviderClient
-from app.db.session import AsyncSessionLocal
-from app.db.repositories import EventRepository, SyncMetaRepository
 from app.core.usecases import SyncEventsUsecase
-from app.config import settings
+from app.db.repositories import EventRepository, SyncMetaRepository
+from app.db.session import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,6 @@ async def periodic_sync(interval_hours: int = 24):
     while True:
         try:
             await run_sync()
-        except Exception as e:
+        except Exception:
             logger.exception("Sync failed")
         await asyncio.sleep(interval_hours * 3600)

@@ -1,30 +1,33 @@
-﻿from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
-from app.db.session import get_db
-from app.db.repositories import EventRepository
-from app.core.clients import EventsProviderClient
-from app.config import settings
+﻿import logging
 import time
-import logging
+from datetime import date
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import settings
+from app.core.clients import EventsProviderClient
+from app.db.repositories import EventRepository
+from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
-# Простой in-memory кэш для мест (TTL 30 секунд)
 seats_cache = {}
 CACHE_TTL = 30
 
 def get_client():
     return EventsProviderClient(settings.EVENTS_PROVIDER_URL, settings.EVENTS_PROVIDER_API_KEY)
 
+
 @router.get("")
 async def list_events(
-    date_from: date | None = Query(None, description="YYYY-MM-DD"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    date_from: Annotated[date | None, Query(None, description="YYYY-MM-DD")] = None,
+    page: Annotated[int, Query(1, ge=1)] = 1,
+    page_size: Annotated[int, Query(20, ge=1, le=100)] = 20,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
 ):
     repo = EventRepository(db)
     events, total = await repo.get_list(date_from, page, page_size)
@@ -54,8 +57,12 @@ async def list_events(
         "results": results
     }
 
+
 @router.get("/{event_id}")
-async def get_event_detail(event_id: str, db: AsyncSession = Depends(get_db)):
+async def get_event_detail(
+    event_id: str,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+):
     repo = EventRepository(db)
     event = await repo.get(event_id)
     if not event:
@@ -76,9 +83,12 @@ async def get_event_detail(event_id: str, db: AsyncSession = Depends(get_db)):
         "number_of_visitors": event.number_of_visitors,
     }
 
+
 @router.get("/{event_id}/seats")
-async def get_available_seats(event_id: str, db: AsyncSession = Depends(get_db)):
-    # Проверяем наличие события в локальной БД и его статус
+async def get_available_seats(
+    event_id: str,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+):
     repo = EventRepository(db)
     event = await repo.get(event_id)
     if not event:
@@ -86,20 +96,17 @@ async def get_available_seats(event_id: str, db: AsyncSession = Depends(get_db))
     if event.status != "published":
         raise HTTPException(status_code=400, detail="Event is not published, cannot get seats")
 
-    # Проверяем кэш
     cache_key = f"seats_{event_id}"
     now = time.time()
     if cache_key in seats_cache and (now - seats_cache[cache_key]["timestamp"]) < CACHE_TTL:
         return {"event_id": event_id, "available_seats": seats_cache[cache_key]["seats"]}
-    
-    # Запрашиваем из внешнего API
+
     client = get_client()
     try:
         data = await client.get_seats(event_id)
         seats = data.get("seats", [])
-        # Сохраняем в кэш
         seats_cache[cache_key] = {"seats": seats, "timestamp": now}
         return {"event_id": event_id, "available_seats": seats}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error fetching seats for event {event_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch seats from external provider")

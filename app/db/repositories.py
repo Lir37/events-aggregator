@@ -1,16 +1,19 @@
-﻿from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+﻿import uuid
+from typing import Any
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.event import Event
 from app.models.sync_meta import SyncMeta
 from app.models.ticket import Ticket
-from typing import List, Dict, Any, Optional
-import uuid
+
 
 class EventRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def save(self, event_data: Dict[str, Any]):
+    async def save(self, event_data: dict[str, Any]):
         event_id = event_data.get("id")
         if isinstance(event_id, str):
             event_id = uuid.UUID(event_id)
@@ -26,7 +29,7 @@ class EventRepository:
             self.session.add(new_event)
         await self.session.commit()
 
-    async def save_many(self, events_data: List[Dict[str, Any]]):
+    async def save_many(self, events_data: list[dict[str, Any]]):
         for data in events_data:
             event_id = data.get("id")
             if isinstance(event_id, str):
@@ -43,12 +46,12 @@ class EventRepository:
         # ОДИН COMMIT НА ВСЕ
         await self.session.commit()
 
-    async def get(self, event_id: str) -> Optional[Event]:
+    async def get(self, event_id: str) -> Event | None:
         stmt = select(Event).where(Event.id == uuid.UUID(event_id))
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_list(self, date_from: Optional[str] = None, page: int = 1, page_size: int = 20):
+    async def get_list(self, date_from: str | None = None, page: int = 1, page_size: int = 20):
         query = select(Event)
         if date_from:
             query = query.where(Event.event_time >= date_from)
@@ -115,7 +118,7 @@ class TicketRepository:
         self.session.add(new_ticket)
         await self.session.commit()
 
-    async def get_by_ticket_id(self, ticket_id: str) -> Optional[Ticket]:
+    async def get_by_ticket_id(self, ticket_id: str) -> Ticket | None:
         stmt = select(Ticket).where(Ticket.ticket_id == ticket_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()

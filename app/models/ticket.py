@@ -1,7 +1,10 @@
-﻿from sqlalchemy import Column, String, DateTime, ForeignKey
+﻿import uuid
+
+from sqlalchemy import Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
+
 from app.db.session import Base
-import uuid
+
 
 class Ticket(Base):
     __tablename__ = "tickets"

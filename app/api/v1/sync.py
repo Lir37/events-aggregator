@@ -1,4 +1,5 @@
 ﻿from fastapi import APIRouter, BackgroundTasks
+
 from app.core.sync_service import run_sync
 
 router = APIRouter(prefix="/sync", tags=["sync"])

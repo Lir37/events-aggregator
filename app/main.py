@@ -1,9 +1,12 @@
-﻿from fastapi import FastAPI
+﻿import asyncio
 from contextlib import asynccontextmanager
-import asyncio
-from app.core.sync_service import periodic_sync
+
+from fastapi import FastAPI
+
+from app.api.v1 import events, health, sync, tickets
 from app.config import settings
-from app.api.v1 import health, events, sync, tickets
+from app.core.sync_service import periodic_sync
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

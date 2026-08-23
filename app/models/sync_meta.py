@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, DateTime, Integer
+from sqlalchemy import Column, DateTime, Integer, String
+
 from app.db.session import Base
+
 
 class SyncMeta(Base):
     __tablename__ = "sync_meta"

@@ -1,19 +1,22 @@
-from typing import AsyncIterator, Dict, Any, Optional
+from collections.abc import AsyncIterator
+from typing import Any
+
 from app.core.clients import EventsProviderClient
+
 
 class EventsPaginator:
     """Асинхронный итератор для обхода всех страниц событий"""
     def __init__(self, client: EventsProviderClient, changed_at: str):
         self.client = client
         self.changed_at = changed_at
-        self._current_page: Optional[Dict[str, Any]] = None
+        self._current_page: dict[str, Any] | None = None
         self._current_index = 0
-        self._next_url: Optional[str] = None
+        self._next_url: str | None = None
 
-    async def __aiter__(self) -> AsyncIterator[Dict[str, Any]]:
+    async def __aiter__(self) -> AsyncIterator[dict[str, Any]]:
         return self
 
-    async def __anext__(self) -> Dict[str, Any]:
+    async def __anext__(self) -> dict[str, Any]:
         # Если нет текущей страницы или дошли до конца списка результатов
         if self._current_page is None or self._current_index >= len(self._current_page.get("results", [])):
             # Если есть следующая страница – загружаем, иначе конец

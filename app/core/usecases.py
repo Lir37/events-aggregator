@@ -1,6 +1,8 @@
 ﻿import logging
-from datetime import datetime
+from datetime import datetime, timezone
+
 import httpx
+
 from app.core.clients import EventsProviderClient
 from app.core.mappers import EventMapper
 from app.core.paginator import EventsPaginator
@@ -45,7 +47,7 @@ class SyncEventsUsecase:
         changed_values = [e["changed_at"] for e in events_to_save if e.get("changed_at")]
         max_changed = max(changed_values, default=changed_at)
 
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()  # Исправлен часовой пояс
         await self.sync_meta_repo.update_meta(now, max_changed, "success")
         logger.info("Sync completed. Saved %d events", len(events_to_save))
         return {"saved": len(events_to_save)}
@@ -81,10 +83,10 @@ class CreateTicketUsecase:
             # Другие HTTP ошибки (500, 429 и т.д.)
             logger.error("Provider HTTP error: %s", str(e))
             raise ProviderError(f"External API error: {e.response.status_code}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 – осознанный перехват для логирования и проброса
             # Ошибки сети, таймауты, любые другие
             logger.error("Registration failed for event %s: %s", event_id, str(e))
-            raise ProviderError(f"Registration failed: {str(e)}")
+            raise ProviderError(f"Registration failed: {e!s}")
 
         # 3. Сохранение билета в своей БД
         await self.tickets_repo.create(event_id, ticket_id, first_name, last_name, email, seat)
@@ -114,9 +116,9 @@ class CancelTicketUsecase:
             else:
                 logger.error("Provider HTTP error on cancel: %s", str(e))
                 raise ProviderError(f"Cancel failed: {e.response.status_code}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 – осознанный перехват для логирования и проброса
             logger.error("Cancel failed for ticket %s: %s", ticket_id, str(e))
-            raise ProviderError(f"Cancel failed: {str(e)}")
+            raise ProviderError(f"Cancel failed: {e!s}")
 
         # 3. Удаление билета из своей БД
         await self.tickets_repo.delete(ticket)
