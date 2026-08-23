@@ -1,4 +1,5 @@
 ﻿import uuid
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -43,7 +44,6 @@ class EventRepository:
                         setattr(existing, key, value)
             else:
                 self.session.add(Event(**data))
-        # ОДИН COMMIT НА ВСЕ
         await self.session.commit()
 
     async def get(self, event_id: str) -> Event | None:
@@ -51,13 +51,14 @@ class EventRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_list(self, date_from: str | None = None, page: int = 1, page_size: int = 20):
+    async def get_list(self, date_from: date | None = None, page: int = 1, page_size: int = 20):
         query = select(Event)
         if date_from:
-            query = query.where(Event.event_time >= date_from)
+            dt_from = datetime.combine(date_from, datetime.min.time())
+            query = query.where(Event.event_time >= dt_from)
         total_query = select(func.count()).select_from(Event)
         if date_from:
-            total_query = total_query.where(Event.event_time >= date_from)
+            total_query = total_query.where(Event.event_time >= dt_from)
 
         total = await self.session.execute(total_query)
         count = total.scalar()
@@ -80,6 +81,7 @@ class EventRepository:
             event.number_of_visitors -= 1
             await self.session.commit()
 
+
 class SyncMetaRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -101,6 +103,7 @@ class SyncMetaRepository:
         meta.last_changed_at = last_changed_at
         meta.status = status
         await self.session.commit()
+
 
 class TicketRepository:
     def __init__(self, session: AsyncSession):

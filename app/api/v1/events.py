@@ -31,7 +31,7 @@ async def list_events(
 ):
     repo = EventRepository(db)
     events, total = await repo.get_list(date_from, page, page_size)
-    base_url = "/api/v1/events"
+    base_url = "/api/events"  # ← исправлено: было /api/v1/events
     results = []
     for e in events:
         results.append({
