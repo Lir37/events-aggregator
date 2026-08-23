@@ -28,7 +28,20 @@ class EventRepository:
 
     async def save_many(self, events_data: List[Dict[str, Any]]):
         for data in events_data:
-            await self.save(data)
+            event_id = data.get("id")
+            if isinstance(event_id, str):
+                event_id = uuid.UUID(event_id)
+            stmt = select(Event).where(Event.id == event_id)
+            result = await self.session.execute(stmt)
+            existing = result.scalar_one_or_none()
+            if existing:
+                for key, value in data.items():
+                    if key != "id" and hasattr(existing, key):
+                        setattr(existing, key, value)
+            else:
+                self.session.add(Event(**data))
+        # ОДИН COMMIT НА ВСЕ
+        await self.session.commit()
 
     async def get(self, event_id: str) -> Optional[Event]:
         stmt = select(Event).where(Event.id == uuid.UUID(event_id))

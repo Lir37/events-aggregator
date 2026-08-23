@@ -1,20 +1,26 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from app.db.session import get_db
 from app.db.repositories import EventRepository, TicketRepository
 from app.core.clients import EventsProviderClient
-from app.core.usecases import CreateTicketUsecase, CancelTicketUsecase
+from app.core.usecases import (
+    CreateTicketUsecase, CancelTicketUsecase,
+    EventNotFound, EventNotPublished, SeatAlreadyTaken, ProviderError
+)
 from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 class TicketCreateRequest(BaseModel):
     event_id: str
-    first_name: str
-    last_name: str
-    email: str
-    seat: str
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    seat: str = Field(min_length=1)
 
 class TicketResponse(BaseModel):
     ticket_id: str
@@ -43,8 +49,19 @@ async def create_ticket(
             data.seat
         )
         return TicketResponse(ticket_id=ticket_id)
-    except Exception as e:
+    except EventNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except EventNotPublished as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except SeatAlreadyTaken as e:
+        raise HTTPException(status_code=409, detail=str(e))  # Conflict
+    except ProviderError as e:
+        # Ошибка внешнего API – можно вернуть 502 или 500
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        # Неожиданная ошибка – логируем и возвращаем 500
+        logger.error("Unexpected error in create_ticket: %s", str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/{ticket_id}", response_model=CancelResponse)
 async def cancel_ticket(
@@ -58,5 +75,11 @@ async def cancel_ticket(
     try:
         await usecase.execute(ticket_id)
         return CancelResponse(success=True)
+    except ValueError as e:
+        # ticket not found in local DB
+        raise HTTPException(status_code=404, detail=str(e))
+    except ProviderError as e:
+        raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error("Unexpected error in cancel_ticket: %s", str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
