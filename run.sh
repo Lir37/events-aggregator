@@ -9,14 +9,8 @@ echo "POSTGRES_PORT: $POSTGRES_PORT"
 echo "DATABASE_URL: $DATABASE_URL"
 echo "=============================================="
 
-echo "Listing alembic versions:"
-ls -la alembic/versions/
-
-echo "Current alembic version:"
-alembic current
-
-echo "Applying migrations with verbose output..."
-alembic upgrade head --verbose
+echo "Applying migrations..."
+alembic upgrade head
 
 echo "Starting application..."
 uvicorn app.main:app --host 0.0.0.0 --port 8000
