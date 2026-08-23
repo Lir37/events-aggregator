@@ -1,7 +1,8 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+﻿from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.models.event import Event
 from app.models.sync_meta import SyncMeta
+from app.models.ticket import Ticket
 from typing import List, Dict, Any, Optional
 import uuid
 
@@ -10,7 +11,6 @@ class EventRepository:
         self.session = session
 
     async def save(self, event_data: Dict[str, Any]):
-        """Сохраняет одно событие (добавляет или обновляет)"""
         event_id = event_data.get("id")
         if isinstance(event_id, str):
             event_id = uuid.UUID(event_id)
@@ -52,6 +52,18 @@ class EventRepository:
         events = result.scalars().all()
         return events, count
 
+    async def increment_visitors(self, event_id: str):
+        event = await self.get(event_id)
+        if event:
+            event.number_of_visitors += 1
+            await self.session.commit()
+
+    async def decrement_visitors(self, event_id: str):
+        event = await self.get(event_id)
+        if event and event.number_of_visitors > 0:
+            event.number_of_visitors -= 1
+            await self.session.commit()
+
 class SyncMetaRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -72,4 +84,29 @@ class SyncMetaRepository:
         meta.last_sync_time = last_sync_time
         meta.last_changed_at = last_changed_at
         meta.status = status
+        await self.session.commit()
+
+class TicketRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, event_id: str, ticket_id: str, first_name: str, last_name: str, email: str, seat: str):
+        new_ticket = Ticket(
+            event_id=uuid.UUID(event_id),
+            ticket_id=ticket_id,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            seat=seat
+        )
+        self.session.add(new_ticket)
+        await self.session.commit()
+
+    async def get_by_ticket_id(self, ticket_id: str) -> Optional[Ticket]:
+        stmt = select(Ticket).where(Ticket.ticket_id == ticket_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def delete(self, ticket: Ticket):
+        await self.session.delete(ticket)
         await self.session.commit()

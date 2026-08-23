@@ -3,11 +3,10 @@ from contextlib import asynccontextmanager
 import asyncio
 from app.core.sync_service import periodic_sync
 from app.config import settings
-from app.api.v1 import health, events, sync
+from app.api.v1 import health, events, sync, tickets
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Запускаем фоновую синхронизацию
     task = asyncio.create_task(periodic_sync(settings.SYNC_INTERVAL_HOURS))
     yield
     task.cancel()
@@ -15,10 +14,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Events Aggregator", lifespan=lifespan)
 
-# Подключаем роутеры
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(events.router, prefix="/api/v1")
 app.include_router(sync.router, prefix="/api/v1")
+app.include_router(tickets.router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

@@ -1,9 +1,9 @@
-import logging
+﻿import logging
 from datetime import datetime
 from typing import Optional
 from app.core.clients import EventsProviderClient
 from app.core.paginator import EventsPaginator
-from app.db.repositories import EventRepository, SyncMetaRepository
+from app.db.repositories import EventRepository, SyncMetaRepository, TicketRepository
 
 logger = logging.getLogger(__name__)
 
@@ -48,3 +48,55 @@ class SyncEventsUsecase:
         await self.sync_meta_repo.update_meta(now, max_changed, "success")
         logger.info("Sync completed. Saved %d events", len(events_to_save))
         return {"saved": len(events_to_save)}
+
+class CreateTicketUsecase:
+    def __init__(self, client: EventsProviderClient, events_repo: EventRepository, tickets_repo: TicketRepository):
+        self.client = client
+        self.events_repo = events_repo
+        self.tickets_repo = tickets_repo
+
+    async def execute(self, event_id: str, first_name: str, last_name: str, email: str, seat: str) -> str:
+        # Проверяем событие
+        event = await self.events_repo.get(event_id)
+        if not event:
+            raise ValueError("Event not found")
+        if event.status != "published":
+            raise ValueError("Event is not published")
+
+        # Регистрация во внешнем API
+        try:
+            result = await self.client.register(event_id, first_name, last_name, email, seat)
+            ticket_id = result.get("ticket_id")
+            if not ticket_id:
+                raise ValueError("No ticket_id in response")
+        except Exception as e:
+            raise ValueError(f"Registration failed: {str(e)}")
+
+        # Сохраняем у себя
+        await self.tickets_repo.create(event_id, ticket_id, first_name, last_name, email, seat)
+        # Увеличиваем счётчик посетителей
+        await self.events_repo.increment_visitors(event_id)
+        return ticket_id
+
+class CancelTicketUsecase:
+    def __init__(self, client: EventsProviderClient, tickets_repo: TicketRepository, events_repo: EventRepository):
+        self.client = client
+        self.tickets_repo = tickets_repo
+        self.events_repo = events_repo
+
+    async def execute(self, ticket_id: str):
+        # Находим запись в БД
+        ticket = await self.tickets_repo.get_by_ticket_id(ticket_id)
+        if not ticket:
+            raise ValueError("Ticket not found")
+
+        # Отменяем во внешнем API
+        try:
+            await self.client.unregister(str(ticket.event_id), ticket_id)
+        except Exception as e:
+            raise ValueError(f"Cancel failed: {str(e)}")
+
+        # Удаляем запись из БД
+        await self.tickets_repo.delete(ticket)
+        # Уменьшаем счётчик посетителей
+        await self.events_repo.decrement_visitors(str(ticket.event_id))

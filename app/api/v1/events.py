@@ -1,9 +1,19 @@
-﻿from fastapi import APIRouter, Depends, Query
+﻿from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.db.repositories import EventRepository
+from app.core.clients import EventsProviderClient
+from app.config import settings
+import time
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+# Простой in-memory кэш для мест (TTL 30 секунд)
+seats_cache = {}
+CACHE_TTL = 30
+
+def get_client():
+    return EventsProviderClient(settings.EVENTS_PROVIDER_URL, settings.EVENTS_PROVIDER_API_KEY)
 
 @router.get("")
 async def list_events(
@@ -39,3 +49,44 @@ async def list_events(
         "previous": prev_page,
         "results": results
     }
+
+@router.get("/{event_id}")
+async def get_event_detail(event_id: str, db: AsyncSession = Depends(get_db)):
+    repo = EventRepository(db)
+    event = await repo.get(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {
+        "id": str(event.id),
+        "name": event.name,
+        "place": {
+            "id": str(event.place_id),
+            "name": event.place_name,
+            "city": event.place_city,
+            "address": event.place_address,
+            "seats_pattern": event.seats_pattern,
+        },
+        "event_time": event.event_time.isoformat() if event.event_time else None,
+        "registration_deadline": event.registration_deadline.isoformat() if event.registration_deadline else None,
+        "status": event.status,
+        "number_of_visitors": event.number_of_visitors,
+    }
+
+@router.get("/{event_id}/seats")
+async def get_available_seats(event_id: str):
+    # Проверяем кэш
+    cache_key = f"seats_{event_id}"
+    now = time.time()
+    if cache_key in seats_cache and (now - seats_cache[cache_key]["timestamp"]) < CACHE_TTL:
+        return {"event_id": event_id, "available_seats": seats_cache[cache_key]["seats"]}
+    
+    # Запрашиваем из внешнего API
+    client = get_client()
+    try:
+        data = await client.get_seats(event_id)
+        seats = data.get("seats", [])
+        # Сохраняем в кэш
+        seats_cache[cache_key] = {"seats": seats, "timestamp": now}
+        return {"event_id": event_id, "available_seats": seats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
