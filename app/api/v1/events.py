@@ -24,9 +24,9 @@ def get_client():
 
 @router.get("")
 async def list_events(
-    date_from: Annotated[date | None, Query(None, description="YYYY-MM-DD")] = None,
-    page: Annotated[int, Query(1, ge=1)] = 1,
-    page_size: Annotated[int, Query(20, ge=1, le=100)] = 20,
+    date_from: Annotated[date | None, Query(description="YYYY-MM-DD")] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ):
     repo = EventRepository(db)
