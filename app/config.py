@@ -1,5 +1,4 @@
 ﻿import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +19,7 @@ class Settings:
 
         # Проверяем, что все переменные заданы
         if not host or not user or not password or not db_name:
-            # Если что-то не задано – подставляем значения для локальной разработки (можно изменить)
+            # Если что-то не задано – подставляем значения для локальной разработки
             DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/events_db"
         else:
             DATABASE_URL = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
@@ -33,8 +32,7 @@ class Settings:
     EVENTS_PROVIDER_API_KEY: str = os.getenv("EVENTS_PROVIDER_API_KEY", "")
     SYNC_INTERVAL_HOURS: int = int(os.getenv("SYNC_INTERVAL_HOURS", "24"))
 
-    # Для отладки – если ключ не задан, выводим предупреждение
-    if not EVENTS_PROVIDER_API_KEY:
-        print("WARNING: EVENTS_PROVIDER_API_KEY is not set!")
+    # Отладочный вывод
+    print(f"DEBUG: DATABASE_URL = {DATABASE_URL}")
 
 settings = Settings()
