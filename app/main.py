@@ -17,10 +17,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Events Aggregator", lifespan=lifespan)
 
-app.include_router(health.router, prefix="/api/v1")
-app.include_router(events.router, prefix="/api/v1")
-app.include_router(sync.router, prefix="/api/v1")
-app.include_router(tickets.router, prefix="/api/v1")
+app.include_router(health.router, prefix="/api")
+app.include_router(events.router, prefix="/api")
+app.include_router(sync.router, prefix="/api")
+app.include_router(tickets.router, prefix="/api")
 
 @app.get("/")
 async def root():
