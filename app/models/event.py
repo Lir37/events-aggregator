@@ -1,7 +1,10 @@
 ﻿import uuid
-from sqlalchemy import Column, String, DateTime, Integer
+
+from sqlalchemy import Column, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+
 from app.db.session import Base
+
 
 class Event(Base):
     __tablename__ = "events"
