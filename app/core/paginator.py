@@ -12,7 +12,7 @@ class EventsPaginator:
         self._current_index = 0
         self._next_url: str | None = None
 
-    async def __aiter__(self) -> "EventsPaginator":
+    def __aiter__(self) -> "EventsPaginator":
         return self
 
     async def __anext__(self) -> dict[str, Any]:
