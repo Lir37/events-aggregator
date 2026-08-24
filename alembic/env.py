@@ -29,7 +29,6 @@ from app.db.session import Base
 target_metadata = Base.metadata
 
 # Импортируем модели, чтобы Alembic их увидел
-from app.models import Event, SyncMeta, Ticket
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
