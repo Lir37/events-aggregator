@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 
@@ -13,7 +14,7 @@ class EventsProviderClient:
 
     async def get_events(self, changed_at: str, cursor: str | None = None) -> dict[str, Any]:
         """Получить список событий (одна страница)"""
-        url = f"{self.base_url}/api/events/"
+        url = urljoin(self.base_url, "/api/events/")
         params = {"changed_at": changed_at}
         if cursor:
             params["cursor"] = cursor
@@ -29,14 +30,14 @@ class EventsProviderClient:
 
     async def get_seats(self, event_id: str) -> dict[str, Any]:
         """Получить список свободных мест"""
-        url = f"{self.base_url}/api/events/{event_id}/seats/"
+        url = urljoin(self.base_url, f"/api/events/{event_id}/seats/")
         response = await self._client.get(url, headers={"x-api-key": self.api_key})
         response.raise_for_status()
         return response.json()
 
     async def register(self, event_id: str, first_name: str, last_name: str, email: str, seat: str) -> dict[str, Any]:
         """Зарегистрировать участника"""
-        url = f"{self.base_url}/api/events/{event_id}/register/"
+        url = urljoin(self.base_url, f"/api/events/{event_id}/register/")
         payload = {
             "first_name": first_name,
             "last_name": last_name,
@@ -49,7 +50,7 @@ class EventsProviderClient:
 
     async def unregister(self, event_id: str, ticket_id: str) -> dict[str, Any]:
         """Отменить регистрацию"""
-        url = f"{self.base_url}/api/events/{event_id}/unregister/"
+        url = urljoin(self.base_url, f"/api/events/{event_id}/unregister/")
         payload = {"ticket_id": ticket_id}
         response = await self._client.request("DELETE", url, json=payload, headers={"x-api-key": self.api_key})
         response.raise_for_status()
