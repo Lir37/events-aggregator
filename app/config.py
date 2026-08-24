@@ -34,7 +34,4 @@ class Settings:
     EVENTS_PROVIDER_API_KEY: str = os.getenv("EVENTS_PROVIDER_API_KEY", "")
     SYNC_INTERVAL_HOURS: int = int(os.getenv("SYNC_INTERVAL_HOURS", "24"))
 
-    # Отладочный вывод
-    print(f"DEBUG: DATABASE_URL = {DATABASE_URL}")
-
 settings = Settings()

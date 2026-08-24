@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.clients import EventsProviderClient
+from app.core.statuses import EventStatus  # ✅ импорт Enum
 from app.db.repositories import EventRepository
 from app.db.session import get_db
 
@@ -31,7 +32,7 @@ async def list_events(
 ):
     repo = EventRepository(db)
     events, total = await repo.get_list(date_from, page, page_size)
-    base_url = "/api/events"  # ← исправлено: было /api/v1/events
+    base_url = "/api/events"
     results = []
     for e in events:
         results.append({
@@ -93,7 +94,8 @@ async def get_available_seats(
     event = await repo.get(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.status != "published":
+    # ✅ Исправлено: используем Enum для сравнения статуса
+    if event.status != EventStatus.PUBLISHED.value:
         raise HTTPException(status_code=400, detail="Event is not published, cannot get seats")
 
     cache_key = f"seats_{event_id}"
@@ -108,5 +110,5 @@ async def get_available_seats(
         seats_cache[cache_key] = {"seats": seats, "timestamp": now}
         return {"event_id": event_id, "available_seats": seats}
     except Exception as e:  # noqa: BLE001
-        logger.error(f"Error fetching seats for event {event_id}: {e}")
+        logger.error("Error fetching seats for event %s: %s", event_id, e)
         raise HTTPException(status_code=500, detail="Failed to fetch seats from external provider")

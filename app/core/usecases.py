@@ -7,6 +7,7 @@ from app.core.clients import EventsProviderClient
 from app.core.mappers import EventMapper
 from app.core.paginator import EventsPaginator
 from app.db.repositories import EventRepository, SyncMetaRepository, TicketRepository
+from app.core.statuses import EventStatus  # ✅ добавлен импорт
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class SyncEventsUsecase:
         changed_values = [e["changed_at"] for e in events_to_save if e.get("changed_at")]
         max_changed = max(changed_values, default=changed_at)
 
-        now = datetime.now(timezone.utc) 
+        now = datetime.now(timezone.utc)
         await self.sync_meta_repo.update_meta(now, max_changed, "success")
         logger.info("Sync completed. Saved %d events", len(events_to_save))
         return {"saved": len(events_to_save)}
@@ -64,7 +65,8 @@ class CreateTicketUsecase:
         event = await self.events_repo.get(event_id)
         if not event:
             raise EventNotFound(f"Event {event_id} not found")
-        if event.status != "published":
+        # ✅ Исправлено:
+        if event.status != EventStatus.PUBLISHED.value:
             raise EventNotPublished(f"Event {event_id} is not published")
 
         # 2. Запрос к внешнему API с обработкой ошибок
@@ -74,17 +76,13 @@ class CreateTicketUsecase:
             if not ticket_id:
                 raise ProviderError("No ticket_id in response")
         except httpx.HTTPStatusError as e:
-            # Специфические ошибки внешнего API
             if e.response.status_code == 404:
                 raise EventNotFound(f"Event {event_id} not found in external API")
             if e.response.status_code == 400:
-                # Предполагаем, что это может быть ошибка "место уже занято" или "невалидные данные"
                 raise SeatAlreadyTaken("Seat is not available or invalid")
-            # Другие HTTP ошибки (500, 429 и т.д.)
             logger.error("Provider HTTP error: %s", str(e))
             raise ProviderError(f"External API error: {e.response.status_code}")
-        except Exception as e:  # noqa: BLE001 – осознанный перехват для логирования и проброса
-            # Ошибки сети, таймауты, любые другие
+        except Exception as e:
             logger.error("Registration failed for event %s: %s", event_id, str(e))
             raise ProviderError(f"Registration failed: {e!s}")
 
@@ -101,25 +99,21 @@ class CancelTicketUsecase:
         self.events_repo = events_repo
 
     async def execute(self, ticket_id: str):
-        # 1. Найти билет в локальной БД
         ticket = await self.tickets_repo.get_by_ticket_id(ticket_id)
         if not ticket:
             raise ValueError("Ticket not found in local database")
 
-        # 2. Отмена во внешнем API с обработкой ошибок
         try:
             await self.client.unregister(str(ticket.event_id), ticket_id)
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                # Билет уже мог быть удалён во внешнем API – логируем, но продолжаем
                 logger.warning("Ticket %s not found in external API, deleting locally", ticket_id)
             else:
                 logger.error("Provider HTTP error on cancel: %s", str(e))
                 raise ProviderError(f"Cancel failed: {e.response.status_code}")
-        except Exception as e:  # noqa: BLE001 – осознанный перехват для логирования и проброса
+        except Exception as e:
             logger.error("Cancel failed for ticket %s: %s", ticket_id, str(e))
             raise ProviderError(f"Cancel failed: {e!s}")
 
-        # 3. Удаление билета из своей БД
         await self.tickets_repo.delete(ticket)
         await self.events_repo.decrement_visitors(str(ticket.event_id))

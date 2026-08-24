@@ -47,7 +47,7 @@ async def create_ticket(
     data: TicketCreateRequest,
     db: AsyncSession = Depends(get_db),  # noqa: B008
 ):
-    logger.info(f"Creating ticket for event {data.event_id}, seat {data.seat}, email {data.email}")
+    logger.info("Creating ticket for event %s, seat %s, email %s", data.event_id, data.seat, data.email)
     client = get_client()
     events_repo = EventRepository(db)
     tickets_repo = TicketRepository(db)
