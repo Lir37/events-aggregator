@@ -51,6 +51,6 @@ class EventsProviderClient:
         """Отменить регистрацию"""
         url = f"{self.base_url}/api/events/{event_id}/unregister/"
         payload = {"ticket_id": ticket_id}
-        response = await self._client.delete(url, json=payload, headers={"x-api-key": self.api_key})
+        response = await self._client.request("DELETE", url, json=payload, headers={"x-api-key": self.api_key})
         response.raise_for_status()
         return response.json()

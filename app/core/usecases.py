@@ -47,7 +47,7 @@ class SyncEventsUsecase:
         changed_values = [e["changed_at"] for e in events_to_save if e.get("changed_at")]
         max_changed = max(changed_values, default=changed_at)
 
-        now = datetime.now(timezone.utc).isoformat()  # Исправлен часовой пояс
+        now = datetime.now(timezone.utc) 
         await self.sync_meta_repo.update_meta(now, max_changed, "success")
         logger.info("Sync completed. Saved %d events", len(events_to_save))
         return {"saved": len(events_to_save)}
