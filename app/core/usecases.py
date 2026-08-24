@@ -6,8 +6,8 @@ import httpx
 from app.core.clients import EventsProviderClient
 from app.core.mappers import EventMapper
 from app.core.paginator import EventsPaginator
-from app.db.repositories import EventRepository, SyncMetaRepository, TicketRepository
 from app.core.statuses import EventStatus  # ✅ добавлен импорт
+from app.db.repositories import EventRepository, SyncMetaRepository, TicketRepository
 
 logger = logging.getLogger(__name__)
 
