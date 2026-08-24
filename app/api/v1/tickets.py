@@ -97,23 +97,4 @@ async def cancel_ticket(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/{ticket_id}", response_model=CancelResponse)
-async def cancel_ticket(
-    ticket_id: str,
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-):
-    client = get_client()
-    tickets_repo = TicketRepository(db)
-    events_repo = EventRepository(db)
-    usecase = CancelTicketUsecase(client, tickets_repo, events_repo)
 
-    try:
-        await usecase.execute(ticket_id)
-        return CancelResponse(success=True)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ProviderError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    except Exception as e:  # noqa: BLE001
-        logger.error("Unexpected error in cancel_ticket: %s", str(e))
-        raise HTTPException(status_code=500, detail="Internal server error")
