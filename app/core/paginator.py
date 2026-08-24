@@ -1,4 +1,3 @@
-from collections.abc import AsyncIterator
 from typing import Any
 
 from app.core.clients import EventsProviderClient
@@ -13,7 +12,7 @@ class EventsPaginator:
         self._current_index = 0
         self._next_url: str | None = None
 
-    async def __aiter__(self) -> AsyncIterator[dict[str, Any]]:
+    async def __aiter__(self) -> "EventsPaginator":
         return self
 
     async def __anext__(self) -> dict[str, Any]:
