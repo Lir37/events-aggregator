@@ -30,10 +30,7 @@ class Settings:
                 DATABASE_URL = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{db_name}"
 
     # ---- Events Provider ----
-    EVENTS_PROVIDER_URL: str = os.getenv(
-        "EVENTS_PROVIDER_URL",
-        "http://events-provider.dev-2.python-labs.ru"
-    )
+    EVENTS_PROVIDER_URL = os.getenv("EVENTS_PROVIDER_URL")
     EVENTS_PROVIDER_API_KEY: str = os.getenv("EVENTS_PROVIDER_API_KEY", "")
     SYNC_INTERVAL_HOURS: int = int(os.getenv("SYNC_INTERVAL_HOURS", "24"))
 
