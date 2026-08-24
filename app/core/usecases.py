@@ -82,7 +82,7 @@ class CreateTicketUsecase:
                 raise SeatAlreadyTaken("Seat is not available or invalid")
             logger.error("Provider HTTP error: %s", str(e))
             raise ProviderError(f"External API error: {e.response.status_code}")
-        except Exception as e:
+        except Exception as e: # noqa: BLE001
             logger.error("Registration failed for event %s: %s", event_id, str(e))
             raise ProviderError(f"Registration failed: {e!s}")
 
@@ -111,7 +111,7 @@ class CancelTicketUsecase:
             else:
                 logger.error("Provider HTTP error on cancel: %s", str(e))
                 raise ProviderError(f"Cancel failed: {e.response.status_code}")
-        except Exception as e:
+        except Exception as e: # noqa: BLE001
             logger.error("Cancel failed for ticket %s: %s", ticket_id, str(e))
             raise ProviderError(f"Cancel failed: {e!s}")
 
