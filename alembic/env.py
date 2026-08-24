@@ -3,7 +3,9 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from app.config import settings  # ✅ импортируем настройки
+
+# ✅ Импортируем настройки (раскомментировано!)
+from app.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -25,6 +27,9 @@ if config.config_file_name is not None:
 from app.db.session import Base
 
 target_metadata = Base.metadata
+
+# Импортируем модели, чтобы Alembic их увидел
+from app.models import Event, SyncMeta, Ticket
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
