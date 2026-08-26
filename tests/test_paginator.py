@@ -33,3 +33,25 @@ async def test_paginator_iterates_all_pages():
         results.append(event)
 
     assert results == [{"id": 1}, {"id": 2}]
+
+
+@pytest.mark.asyncio
+async def test_paginator_stops_on_empty_page():
+    client_mock = AsyncMock()
+
+    async def mock_get_events(changed_at, cursor=None):
+        return {
+            "next": None,
+            "results": [],
+        }
+
+    client_mock.get_events = mock_get_events
+
+    paginator = EventsPaginator(client_mock, "2000-01-01")
+
+    results = []
+
+    async for event in paginator:
+        results.append(event)
+
+    assert results == []

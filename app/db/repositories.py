@@ -97,7 +97,12 @@ class SyncMetaRepository:
             await self.session.refresh(meta)
         return meta
 
-    async def update_meta(self, last_sync_time, last_changed_at, status):
+    async def update_meta(
+            self,
+            last_sync_time: datetime,
+            last_changed_at: str,
+            status: str,
+    ):
         meta = await self.get_meta()
         meta.last_sync_time = last_sync_time
         meta.last_changed_at = last_changed_at

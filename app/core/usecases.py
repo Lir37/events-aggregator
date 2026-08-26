@@ -1,5 +1,7 @@
 ﻿import logging
+import time
 from datetime import date, datetime, timezone
+from typing import ClassVar
 
 import httpx
 
@@ -264,3 +266,63 @@ class CancelTicketUsecase:
         await self.events_repo.decrement_visitors(
             str(ticket.event_id)
         )
+
+
+class GetSeatsUseCase:
+    CACHE_TTL = 30
+    seats_cache: ClassVar[dict] = {}
+
+    def __init__(
+        self,
+        client: EventsProviderClient,
+        event_repo: EventRepository,
+    ):
+        self.client = client
+        self.event_repo = event_repo
+
+    async def execute(self, event_id: str):
+        event = await self.event_repo.get(event_id)
+
+        if not event:
+            raise EventNotFound(
+                f"Event {event_id} not found"
+            )
+
+        if event.status != EventStatus.PUBLISHED.value:
+            raise EventNotPublished(
+                f"Event {event_id} is not published"
+            )
+
+        cache_key = f"seats_{event_id}"
+        now = time.time()
+
+        cached_data = self.seats_cache.get(cache_key)
+
+        if (
+            cached_data
+            and now - cached_data["timestamp"] < self.CACHE_TTL
+        ):
+            return cached_data["seats"]
+
+        try:
+            data = await self.client.get_seats(event_id)
+
+        except Exception as e:  # noqa: BLE001
+            logger.error(
+                "Error fetching seats for event %s: %s",
+                event_id,
+                e,
+            )
+
+            raise ProviderError(
+                "Failed to fetch seats from external provider"
+            )
+
+        seats = data.get("seats", [])
+
+        self.seats_cache[cache_key] = {
+            "seats": seats,
+            "timestamp": now,
+        }
+
+        return seats

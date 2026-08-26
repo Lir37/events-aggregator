@@ -1,29 +1,21 @@
-﻿import logging
-import time
-from datetime import date
+﻿from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.api.dependencies import get_event_usecase
-from app.config import settings
-from app.core.clients import EventsProviderClient
-from app.core.statuses import EventStatus
-from app.core.usecases import EventUseCase
-
-logger = logging.getLogger(__name__)
+from app.api.dependencies import (
+    get_event_usecase,
+    get_seats_usecase,
+)
+from app.core.usecases import (
+    EventNotFound,
+    EventNotPublished,
+    EventUseCase,
+    GetSeatsUseCase,
+    ProviderError,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
-
-seats_cache = {}
-CACHE_TTL = 30
-
-
-def get_client():
-    return EventsProviderClient(
-        settings.EVENTS_PROVIDER_URL,
-        settings.EVENTS_PROVIDER_API_KEY,
-    )
 
 
 @router.get("")
@@ -133,58 +125,29 @@ async def get_event_detail(
 @router.get("/{event_id}/seats")
 async def get_available_seats(
     event_id: str,
-    usecase: EventUseCase = Depends(get_event_usecase),  # noqa: B008
+    usecase: GetSeatsUseCase = Depends(get_seats_usecase),  # noqa: B008
 ):
-    event = await usecase.get_event(event_id)
-
-    if not event:
-        raise HTTPException(
-            status_code=404,
-            detail="Event not found",
-        )
-
-    if event.status != EventStatus.PUBLISHED.value:
-        raise HTTPException(
-            status_code=400,
-            detail="Event is not published, cannot get seats",
-        )
-
-    cache_key = f"seats_{event_id}"
-    now = time.time()
-
-    if (
-        cache_key in seats_cache
-        and now - seats_cache[cache_key]["timestamp"] < CACHE_TTL
-    ):
-        return {
-            "event_id": event_id,
-            "available_seats": seats_cache[cache_key]["seats"],
-        }
-
-    client = get_client()
-
     try:
-        data = await client.get_seats(event_id)
-
-        seats = data.get("seats", [])
-
-        seats_cache[cache_key] = {
-            "seats": seats,
-            "timestamp": now,
-        }
+        seats = await usecase.execute(event_id)
 
         return {
             "event_id": event_id,
             "available_seats": seats,
         }
 
-    except Exception as e:  # noqa: BLE001
-        logger.error(
-            "Error fetching seats for event %s: %s",
-            event_id,
-            e,
+    except EventNotFound:
+        raise HTTPException(
+            status_code=404,
+            detail="Event not found",
         )
 
+    except EventNotPublished:
+        raise HTTPException(
+            status_code=400,
+            detail="Event is not published, cannot get seats",
+        )
+
+    except ProviderError:
         raise HTTPException(
             status_code=500,
             detail="Failed to fetch seats from external provider",
